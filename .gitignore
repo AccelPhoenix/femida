@@ -1,0 +1,49 @@
+# Binaries
+/bin/
+*.exe
+*.dll
+*.so
+*.dylib
+/atropos
+/femida
+
+# Test binary
+*.test
+
+# Go workspace
+go.work
+
+# Coverage output
+*.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Config with secrets
+.env
+configs/local.yaml
+
+# Logs
+*.log
+
+# Build artifacts
+/dist/
+/tmp/
+
+# Test data
+/testdata/tmp/
+
+# Large files
+/storage/iso/
+/storage/repo/
