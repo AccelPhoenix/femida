@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"io"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -35,7 +36,11 @@ func newTestLogger() *slog.Logger {
 func newTestServer(t *testing.T) (*Server, string) {
 	t.Helper()
 	dir := t.TempDir()
-	srv := NewServer("127.0.0.1:0", dir, newTestLogger())
+	cfg := Config{
+		Port:       0,
+		AssetsPath: dir,
+	}
+	srv := NewServer(cfg, newTestLogger())
 	t.Cleanup(srv.Stop)
 	return srv, dir
 }
@@ -51,7 +56,13 @@ func startServer(t *testing.T, srv *Server) string {
 	if srv.conn == nil {
 		t.Fatal("conn is nil after Start")
 	}
-	return srv.conn.LocalAddr().String()
+	// LocalAddr может быть [::]:port или 0.0.0.0:port — клиенту нужен
+	// конкретный адрес. Берём только порт и подставляем loopback.
+	_, port, err := net.SplitHostPort(srv.conn.LocalAddr().String())
+	if err != nil {
+		t.Fatalf("split addr: %v", err)
+	}
+	return net.JoinHostPort("127.0.0.1", port)
 }
 
 // writeAsset создаёт файл в папке assets (с промежуточными каталогами).
@@ -342,7 +353,10 @@ func TestSymlinkEscape(t *testing.T) {
 		t.Fatalf("symlink: %v", err)
 	}
 
-	srv := NewServer("127.0.0.1:0", assetsDir, newTestLogger())
+	srv := NewServer(Config{
+		Port:       0,
+		AssetsPath: assetsDir,
+	}, newTestLogger())
 	t.Cleanup(srv.Stop)
 	addr := startServer(t, srv)
 
@@ -391,7 +405,11 @@ func TestAssetsIsSymlink(t *testing.T) {
 		t.Fatalf("symlink: %v", err)
 	}
 
-	srv := NewServer("127.0.0.1:0", linkDir, newTestLogger())
+	srv := NewServer(Config{
+		Port:       0,
+		AssetsPath: linkDir,
+	}, newTestLogger())
+
 	t.Cleanup(srv.Stop)
 	addr := startServer(t, srv)
 

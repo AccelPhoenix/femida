@@ -15,6 +15,23 @@ import (
 	"github.com/pin/tftp/v3"
 )
 
+// Config — описывает базовые параметры сервера
+type Config struct {
+	//Port — UDP-порт для TFTP. По умолчанию 69.
+	Port int `yaml:"port"`
+
+	// AssetsPath — путь к папке с файлами для раздачи.
+	AssetsPath string `yaml:"assets_path"`
+}
+
+// DefaultConfig возвращает Config с дефолтными значениями.
+func DefaultConfig() Config {
+	return Config{
+		Port:       69,
+		AssetsPath: "storage/tftp/assets",
+	}
+}
+
 // State описывает состояние TFTP-сервера.
 type State int
 
@@ -26,8 +43,7 @@ const (
 
 // Server — обёртка над pin/tftp с управлением жизненным циклом.
 //
-// Модуль не знает о конфиге и не зависит от других пакетов Femida.
-// Параметры (адрес, путь к assets) передаются в NewServer явно.
+// Параметры (адрес, путь к assets) передаются в NewServer через структуру(port, ).
 type Server struct {
 	addr           string
 	assetsPath     string
@@ -44,16 +60,16 @@ type Server struct {
 
 // NewServer создаёт TFTP-сервер.
 //
-// addr — адрес прослушивания в формате ":69" или "127.0.0.1:6969".
+// addr — адрес прослушивания в формате ":69".
 // assetsPath — путь к папке с файлами для раздачи.
 // logger — обязательный логгер. Паникует, если nil.
-func NewServer(addr, assetsPath string, logger *slog.Logger) *Server {
+func NewServer(cfg Config, logger *slog.Logger) *Server {
 
 	if logger == nil {
 		panic("tftp: logger is required")
 	}
 
-	absRoot, err := filepath.Abs(assetsPath)
+	absRoot, err := filepath.Abs(cfg.AssetsPath)
 	if err != nil {
 		panic(fmt.Errorf("tftp: resolve assets path: %w", err))
 	}
@@ -64,8 +80,8 @@ func NewServer(addr, assetsPath string, logger *slog.Logger) *Server {
 	}
 
 	s := &Server{
-		addr:           addr,
-		assetsPath:     assetsPath,
+		addr:           fmt.Sprintf(":%d", cfg.Port),
+		assetsPath:     cfg.AssetsPath,
 		realAssetsPath: realRoot,
 
 		logger: logger.With("component", "tftp"),
