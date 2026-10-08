@@ -4,7 +4,6 @@
 *.dll
 *.so
 *.dylib
-/atropos
 /femida
 
 # Test binary
@@ -44,6 +43,13 @@ configs/local.yaml
 # Test data
 /testdata/tmp/
 
-# Large files
-/storage/iso/
-/storage/repo/
+# Large runtime files
+/storage/iso/*
+!/storage/iso/.gitkeep
+/storage/repo/*
+!/storage/repo/.gitkeep
+
+# TFTP assets
+/storage/tftp/assets/*.efi
+/storage/tftp/assets/*.kpxe
+/storage/tftp/assets/*.kkpxe
