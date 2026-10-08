@@ -6,64 +6,110 @@ import (
 	"testing"
 )
 
-// TestLoadFileNotFound проверяет, что отсутсвующий файл выдаёт ошибку
-func TestLoadFileNotFound(t *testing.T) {
-	_, err := Load("nonexistent.yaml")
-	if err == nil {
-		t.Fatal("expected error for missing file, got nil")
+// writeConfig — helper: создаёт файл с заданным содержимым и возвращает путь.
+func writeConfig(t *testing.T, name, content string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatalf("write %s: %v", name, err)
+	}
+	return path
+}
+
+// TestLoadMissingFileReturnDefaults проверяет, что при отсутствии файла
+// возвращаются дефолты без ошибки.
+func TestLoadMissingFileReturnDefaults(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "nonexistent.yaml")
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("want no error, got %v", err)
+	}
+	if cfg == nil {
+		t.Fatal("want non-nil config, got nil")
+	}
+	if cfg.TFTP.Port != 69 {
+		t.Errorf("want default port 69, got %d", cfg.TFTP.Port)
+	}
+	if cfg.TFTP.AssetsPath == "" {
+		t.Error("want non-empty default AssetsPath")
 	}
 }
 
-// TestLoadInvalidYaml проверяет, что невалидный YAML выдаёт ошибку
-func TestLoadInvalidYaml(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "invalid.yaml")
+// TestLoadInvalidYAML проверяет, что невалидный YAML возвращает ошибку.
+func TestLoadInvalidYAML(t *testing.T) {
+	path := writeConfig(t, "invalid.yaml", "example: [this is not valid")
 
-	content := "example: [this is not valid"
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		t.Fatalf("write test file: %v", err)
-	}
-
-	_, err := Load(path)
-	if err == nil {
+	if _, err := Load(path); err == nil {
 		t.Fatal("expected error for invalid YAML, got nil")
 	}
 }
 
-// TestLoadEmptyConfig проверяет, что пустой YAML даёт пустую Config без ошибки.
-func TestLoadEmptyConfig(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "invalid.yaml")
+// TestLoadEmptyFile проверяет, что пустой файл даёт дефолты без ошибки.
+func TestLoadEmptyFile(t *testing.T) {
+	path := writeConfig(t, "empty.yaml", "")
 
-	if err := os.WriteFile(path, []byte(""), 0644); err != nil {
-		t.Fatalf("write test file: %v", err)
-	}
 	cfg, err := Load(path)
-
 	if err != nil {
-		t.Fatalf("load empty config: %v", err)
+		t.Fatalf("load empty: %v", err)
 	}
-	if cfg == nil {
-		t.Fatal("expeted non-nil config, got nil")
+	if cfg.TFTP.Port != 69 {
+		t.Errorf("want default port 69, got %d", cfg.TFTP.Port)
+	}
+	if cfg.TFTP.AssetsPath == "" {
+		t.Error("want non-empty default AssetsPath")
 	}
 }
 
-// TestLoadEmptyYAML проверяет, что YAML с комментариями, но без данных,
-// даёт пустой Config.
-func TestLoadEmptyYAML(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "comments.yaml")
-
+// TestLoadCommentsOnly проверяет, что YAML только с комментариями
+// даёт дефолты без ошибки.
+func TestLoadCommentsOnly(t *testing.T) {
 	content := "# только комментарий\n# и ещё один\n"
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		t.Fatalf("write test file: %v", err)
-	}
+	path := writeConfig(t, "comments.yaml", content)
 
 	cfg, err := Load(path)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if cfg == nil {
-		t.Fatal("expected non-nil config")
+	if cfg.TFTP.Port != 69 {
+		t.Errorf("want default port 69, got %d", cfg.TFTP.Port)
+	}
+}
+
+// TestLoadFullYAML проверяет, что полная секция TFTP парсится корректно.
+func TestLoadFullYAML(t *testing.T) {
+	content := `tftp:
+  port: 6969
+  assets_path: /srv/assets
+`
+	path := writeConfig(t, "full.yaml", content)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if cfg.TFTP.Port != 6969 {
+		t.Errorf("port: want 6969, got %d", cfg.TFTP.Port)
+	}
+	if cfg.TFTP.AssetsPath != "/srv/assets" {
+		t.Errorf("assets_path: want /srv/assets, got %q", cfg.TFTP.AssetsPath)
+	}
+}
+
+// TestLoadPartialYAML проверяет, что при указании только port
+// поле assets_path остаётся дефолтным.
+func TestLoadPartialYAML(t *testing.T) {
+	content := "tftp:\n  port: 6969\n"
+	path := writeConfig(t, "partial.yaml", content)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if cfg.TFTP.Port != 6969 {
+		t.Errorf("port: want 6969, got %d", cfg.TFTP.Port)
+	}
+	if cfg.TFTP.AssetsPath == "" {
+		t.Error("assets_path: want default (non-empty), got empty")
 	}
 }

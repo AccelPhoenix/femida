@@ -2,24 +2,36 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/accelphoenix/femida/internal/tftp"
 )
 
 // Config — корневая структура конфигурации.
-// Секции добавляются по мере реализации модулей
+// Агрегирует секции модулей Femida.
 type Config struct {
+	TFTP tftp.Config `yaml:"tftp"`
 }
 
 // Load читает yaml файл по указанному пути и возвращает Config
 func Load(path string) (*Config, error) {
+	cfg := Config{
+		TFTP: tftp.DefaultConfig(),
+	}
+
 	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return &cfg, nil
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
-	var cfg Config
+
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}

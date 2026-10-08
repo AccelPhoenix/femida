@@ -29,9 +29,11 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
-# Config with secrets
+# Configs
 .env
 configs/local.yaml
+configs/*.yaml
+!configs/*.example.yaml
 
 # Logs
 *.log
